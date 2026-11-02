@@ -52,11 +52,19 @@ jobs:
         {json.dumps(weather)}
         """
 
-        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + "${{ secrets.GOOGLE_API_KEY }}"
+        url = "https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${{ secrets.GOOGLE_API_KEY }}"
 
         response = requests.post(
             url,
-            json={"contents":[{"parts":[{"text": prompt}]}]}
+            json={
+              "contents": [
+                {
+                  "parts": [
+                    {"text": prompt}
+                  ]
+                }
+              ]
+            }
         )
 
         print("RAW GEMINI RESPONSE:")
@@ -64,7 +72,6 @@ jobs:
 
         data = response.json()
 
-        # Fail gracefully if Gemini returns an error
         if "candidates" not in data:
             raise SystemExit("Gemini returned an error instead of text.")
 
