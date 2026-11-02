@@ -82,27 +82,51 @@ jobs:
         EOF
 
 
-    - name: Convert Script to MP3 (OpenAI TTS)
+    - name: Convert Script to MP3 (Google Cloud TTS)
       id: tts
       env:
-        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_TTS_KEY }}
       run: |
         python << 'EOF'
-        import requests
+        import json
+        import base64
+        from google.oauth2 import service_account
+        import google.auth.transport.requests
 
+        # Load service account credentials
+        creds_info = json.loads("""${{ secrets.GOOGLE_TTS_KEY }}""")
+        creds = service_account.Credentials.from_service_account_info(
+            creds_info,
+            scopes=["https://www.googleapis.com/auth/cloud-platform"]
+        )
+
+        auth_req = google.auth.transport.requests.Request()
+        creds.refresh(auth_req)
+        token = creds.token
+
+        # Read the bulletin text
         text = open("bulletin.txt").read()
 
-        url = "https://api.openai.com/v1/audio/speech"
+        # Google Cloud TTS endpoint
+        url = "https://texttospeech.googleapis.com/v1/text:synthesize"
+
+        import requests
 
         payload = {
-            "model": "gpt-4o-mini-tts",
-            "input": text,
-            "voice": "alloy",
-            "format": "mp3"
+            "input": {"text": text},
+            "voice": {
+                "languageCode": "en-GB",
+                "name": "en-GB-Neural2-C"
+            },
+            "audioConfig": {
+                "audioEncoding": "MP3",
+                "speakingRate": 1.0,
+                "pitch": 0.0
+            }
         }
 
         headers = {
-            "Authorization": "Bearer ${{ secrets.OPENAI_API_KEY }}",
+            "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
 
@@ -111,10 +135,13 @@ jobs:
         if r.status_code != 200:
             raise SystemExit("TTS failed: " + r.text)
 
-        with open("costa-blanca-weather.mp3", "wb") as f:
-            f.write(r.content)
-        EOF
+        data = r.json()
+        audio_b64 = data["audioContent"]
+        audio_bytes = base64.b64decode(audio_b64)
 
+        with open("costa-blanca-weather.mp3", "wb") as f:
+            f.write(audio_bytes)
+        EOF
 
     - name: Upload MP3 as Artifact
       uses: actions/upload-artifact@v4
