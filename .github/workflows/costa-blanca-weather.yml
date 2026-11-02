@@ -82,7 +82,7 @@ jobs:
         EOF
 
 
-    - name: Convert Script to MP3 (Google AI Studio TTS)
+    - name: Convert Script to MP3 (Google TTS)
       id: tts
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
@@ -92,20 +92,33 @@ jobs:
 
         text = open("bulletin.txt").read()
 
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gpt-4o-mini-tts:generateContent?key=${{ secrets.GOOGLE_API_KEY }}"
+
         payload = {
-            "model": "gpt-4o-mini-tts",
-            "voice": "alloy",
-            "input": text
+            "contents": [
+                {
+                    "parts": [
+                        {"text": text}
+                    ]
+                }
+            ]
         }
 
-        r = requests.post(
-            "https://api.openai.com/v1/audio/speech",
-            headers={"Authorization": "Bearer " + "${{ secrets.GOOGLE_API_KEY }}"},
-            json=payload
-        )
+        r = requests.post(url, json=payload)
+
+        # Google returns base64 audio
+        data = r.json()
+
+        if "candidates" not in data:
+            raise SystemExit("TTS failed: " + r.text)
+
+        audio_b64 = data["candidates"][0]["content"]["parts"][0]["audio"]["data"]
+
+        import base64
+        audio_bytes = base64.b64decode(audio_b64)
 
         with open("costa-blanca-weather.mp3", "wb") as f:
-            f.write(r.content)
+            f.write(audio_bytes)
         EOF
 
     - name: Upload MP3 as Artifact
