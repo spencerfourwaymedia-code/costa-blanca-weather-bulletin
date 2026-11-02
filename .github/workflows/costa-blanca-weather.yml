@@ -35,16 +35,18 @@ jobs:
             json.dump(data, f)
         EOF
 
-    - name: Generate Weather Script with Gemini
+    - name: Generate Weather Script with Gemini (Retry + Full Output)
       id: script
       env:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       run: |
         python << 'EOF'
-        import requests, json
+        import requests, json, time
 
+        # Load weather data
         weather = json.load(open("weather.json"))
 
+        # Build prompt
         prompt = f"""
         Write a 35-second Costa Blanca weather bulletin for radio.
         Tone: British radio, present tense, tight pacing, spoken-friendly.
@@ -52,36 +54,48 @@ jobs:
         {json.dumps(weather)}
         """
 
+        # Gemini 3.5 Flash endpoint
         url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${{ secrets.GOOGLE_API_KEY }}"
 
-response = requests.post(
-    url,
-    json={
-      "contents": [
-        {
-          "parts": [
-            {"text": prompt}
-          ]
+        payload = {
+            "contents": [
+                {
+                    "parts": [
+                        {"text": prompt}
+                    ]
+                }
+            ]
         }
-      ]
-    }
-)
 
-print("RAW GEMINI RESPONSE:")
-print(response.text)
+        # Retry logic for Gemini overload (503)
+        for attempt in range(5):
+            r = requests.post(url, json=payload)
+            print(f"Attempt {attempt + 1} response:")
+            print(r.text)
 
-data = response.json()
+            data = r.json()
 
-if "candidates" not in data:
-    raise SystemExit("Gemini returned an error instead of text.")
+            # Success case
+            if r.status_code == 200 and "candidates" in data:
+                parts = data["candidates"][0]["content"]["parts"]
+                script = "".join(p.get("text", "") for p in parts)
 
-# FIX: Combine all parts
-parts = data["candidates"][0]["content"]["parts"]
-script = "".join(p.get("text", "") for p in parts)
+                with open("bulletin.txt", "w") as f:
+                    f.write(script)
+                break
 
-with open("bulletin.txt", "w") as f:
-    f.write(script)
+            # Retry on overload
+            if r.status_code == 503:
+                time.sleep(10)
+                continue
+
+            # Any other error → fail immediately
+            raise SystemExit("Gemini failed: " + r.text)
+
+        else:
+            raise SystemExit("Gemini failed after 5 retries.")
         EOF
+
 
     - name: Install Google Cloud TTS dependencies
       run: |
