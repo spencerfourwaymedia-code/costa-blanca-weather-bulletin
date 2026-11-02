@@ -52,12 +52,23 @@ jobs:
         {json.dumps(weather)}
         """
 
-        response = requests.post(
-            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + "${{ secrets.GOOGLE_API_KEY }}",
-            json={"contents":[{"parts":[{"text": prompt}]}]}
-        ).json()
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + "${{ secrets.GOOGLE_API_KEY }}"
 
-        script = response["candidates"][0]["content"]["parts"][0]["text"]
+        response = requests.post(
+            url,
+            json={"contents":[{"parts":[{"text": prompt}]}]}
+        )
+
+        print("RAW GEMINI RESPONSE:")
+        print(response.text)
+
+        data = response.json()
+
+        # Fail gracefully if Gemini returns an error
+        if "candidates" not in data:
+            raise SystemExit("Gemini returned an error instead of text.")
+
+        script = data["candidates"][0]["content"]["parts"][0]["text"]
 
         with open("bulletin.txt", "w") as f:
             f.write(script)
