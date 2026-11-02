@@ -81,6 +81,11 @@ jobs:
             f.write(script)
         EOF
 
+            - name: Install Google Cloud TTS dependencies
+      run: |
+        pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+
+
 
     - name: Convert Script to MP3 (Google Cloud TTS)
       id: tts
