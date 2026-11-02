@@ -54,31 +54,33 @@ jobs:
 
         url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${{ secrets.GOOGLE_API_KEY }}"
 
-        response = requests.post(
-            url,
-            json={
-              "contents": [
-                {
-                  "parts": [
-                    {"text": prompt}
-                  ]
-                }
-              ]
-            }
-        )
+response = requests.post(
+    url,
+    json={
+      "contents": [
+        {
+          "parts": [
+            {"text": prompt}
+          ]
+        }
+      ]
+    }
+)
 
-        print("RAW GEMINI RESPONSE:")
-        print(response.text)
+print("RAW GEMINI RESPONSE:")
+print(response.text)
 
-        data = response.json()
+data = response.json()
 
-        if "candidates" not in data:
-            raise SystemExit("Gemini returned an error instead of text.")
+if "candidates" not in data:
+    raise SystemExit("Gemini returned an error instead of text.")
 
-        script = data["candidates"][0]["content"]["parts"][0]["text"]
+# FIX: Combine all parts
+parts = data["candidates"][0]["content"]["parts"]
+script = "".join(p.get("text", "") for p in parts)
 
-        with open("bulletin.txt", "w") as f:
-            f.write(script)
+with open("bulletin.txt", "w") as f:
+    f.write(script)
         EOF
 
     - name: Install Google Cloud TTS dependencies
