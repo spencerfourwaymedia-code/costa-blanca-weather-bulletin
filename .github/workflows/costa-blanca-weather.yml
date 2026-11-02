@@ -88,16 +88,19 @@ jobs:
     - name: Convert Script to MP3 (Google Cloud TTS)
       id: tts
       env:
-        GOOGLE_APPLICATION_CREDENTIALS: ${{ secrets.GOOGLE_TTS_KEY }}
+        GOOGLE_TTS_KEY_B64: ${{ secrets.GOOGLE_TTS_KEY_B64 }}
       run: |
         python << 'EOF'
-        import json
-        import base64
+        import json, base64
         from google.oauth2 import service_account
         import google.auth.transport.requests
         import requests
 
-        creds_info = json.loads("""${{ secrets.GOOGLE_TTS_KEY }}""")
+        # Decode the base64 service account JSON
+        creds_json = base64.b64decode("${{ secrets.GOOGLE_TTS_KEY_B64 }}").decode("utf-8")
+        creds_info = json.loads(creds_json)
+
+        # Authenticate
         creds = service_account.Credentials.from_service_account_info(
             creds_info,
             scopes=["https://www.googleapis.com/auth/cloud-platform"]
@@ -107,8 +110,10 @@ jobs:
         creds.refresh(auth_req)
         token = creds.token
 
+        # Read the bulletin text
         text = open("bulletin.txt").read()
 
+        # Google Cloud TTS endpoint
         url = "https://texttospeech.googleapis.com/v1/text:synthesize"
 
         payload = {
