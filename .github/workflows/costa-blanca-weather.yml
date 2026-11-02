@@ -1,0 +1,96 @@
+name: Daily Costa Blanca Weather Bulletin
+
+on:
+  schedule:
+    - cron: "0 6 * * *"   # Runs every day at 06:00 UTC
+  workflow_dispatch:       # Allows manual runs
+
+jobs:
+  generate-weather-bulletin:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: "3.11"
+
+    - name: Install dependencies
+      run: |
+        pip install requests
+
+    - name: Fetch Costa Blanca Weather
+      id: weather
+      run: |
+        python << 'EOF'
+        import requests, json
+
+        url = "https://api.open-meteo.com/v1/forecast?latitude=38.345&longitude=-0.481&hourly=temperature_2m,wind_speed_10m,precipitation_probability"
+
+        data = requests.get(url).json()
+        with open("weather.json", "w") as f:
+            json.dump(data, f)
+        EOF
+
+    - name: Generate Weather Script with Gemini
+      id: script
+      env:
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      run: |
+        python << 'EOF'
+        import requests, json
+
+        weather = json.load(open("weather.json"))
+
+        prompt = f"""
+        Write a 35-second Costa Blanca weather bulletin for radio.
+        Tone: British radio, present tense, tight pacing, spoken-friendly.
+        Use this weather data:
+        {json.dumps(weather)}
+        """
+
+        response = requests.post(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + "${{ secrets.GOOGLE_API_KEY }}",
+            json={"contents":[{"parts":[{"text": prompt}]}]}
+        ).json()
+
+        script = response["candidates"][0]["content"]["parts"][0]["text"]
+
+        with open("bulletin.txt", "w") as f:
+            f.write(script)
+        EOF
+
+    - name: Convert Script to MP3 (Google AI Studio TTS)
+      id: tts
+      env:
+        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+      run: |
+        python << 'EOF'
+        import requests
+
+        text = open("bulletin.txt").read()
+
+        payload = {
+            "model": "gpt-4o-mini-tts",
+            "voice": "alloy",
+            "input": text
+        }
+
+        r = requests.post(
+            "https://api.openai.com/v1/audio/speech",
+            headers={"Authorization": "Bearer " + "${{ secrets.GOOGLE_API_KEY }}"},
+            json=payload
+        )
+
+        with open("costa-blanca-weather.mp3", "wb") as f:
+            f.write(r.content)
+        EOF
+
+    - name: Upload MP3 as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: costa-blanca-weather
+        path: costa-blanca-weather.mp3
