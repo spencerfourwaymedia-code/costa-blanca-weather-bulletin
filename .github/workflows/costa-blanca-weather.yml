@@ -88,11 +88,11 @@ jobs:
         GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
       run: |
         python << 'EOF'
-        import requests
+        import requests, base64
 
         text = open("bulletin.txt").read()
 
-        url = "https://generativelanguage.googleapis.com/v1beta/models/gpt-4o-mini-tts:generateContent?key=${{ secrets.GOOGLE_API_KEY }}"
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-tts:generateContent?key=${{ secrets.GOOGLE_API_KEY }}"
 
         payload = {
             "contents": [
@@ -105,16 +105,15 @@ jobs:
         }
 
         r = requests.post(url, json=payload)
+        print("RAW TTS RESPONSE:")
+        print(r.text)
 
-        # Google returns base64 audio
         data = r.json()
 
         if "candidates" not in data:
             raise SystemExit("TTS failed: " + r.text)
 
         audio_b64 = data["candidates"][0]["content"]["parts"][0]["audio"]["data"]
-
-        import base64
         audio_bytes = base64.b64decode(audio_b64)
 
         with open("costa-blanca-weather.mp3", "wb") as f:
