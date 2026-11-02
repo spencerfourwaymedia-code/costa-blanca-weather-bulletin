@@ -82,7 +82,7 @@ jobs:
         EOF
 
 
-     - name: Convert Script to MP3 (OpenAI TTS)
+    - name: Convert Script to MP3 (OpenAI TTS)
       id: tts
       env:
         OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
@@ -114,6 +114,7 @@ jobs:
         with open("costa-blanca-weather.mp3", "wb") as f:
             f.write(r.content)
         EOF
+
 
     - name: Upload MP3 as Artifact
       uses: actions/upload-artifact@v4
