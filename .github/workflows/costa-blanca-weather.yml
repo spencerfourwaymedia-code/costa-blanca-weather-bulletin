@@ -81,11 +81,9 @@ jobs:
             f.write(script)
         EOF
 
-            - name: Install Google Cloud TTS dependencies
+    - name: Install Google Cloud TTS dependencies
       run: |
         pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
-
-
 
     - name: Convert Script to MP3 (Google Cloud TTS)
       id: tts
@@ -97,8 +95,8 @@ jobs:
         import base64
         from google.oauth2 import service_account
         import google.auth.transport.requests
+        import requests
 
-        # Load service account credentials
         creds_info = json.loads("""${{ secrets.GOOGLE_TTS_KEY }}""")
         creds = service_account.Credentials.from_service_account_info(
             creds_info,
@@ -109,13 +107,9 @@ jobs:
         creds.refresh(auth_req)
         token = creds.token
 
-        # Read the bulletin text
         text = open("bulletin.txt").read()
 
-        # Google Cloud TTS endpoint
         url = "https://texttospeech.googleapis.com/v1/text:synthesize"
-
-        import requests
 
         payload = {
             "input": {"text": text},
@@ -140,8 +134,7 @@ jobs:
         if r.status_code != 200:
             raise SystemExit("TTS failed: " + r.text)
 
-        data = r.json()
-        audio_b64 = data["audioContent"]
+        audio_b64 = r.json()["audioContent"]
         audio_bytes = base64.b64decode(audio_b64)
 
         with open("costa-blanca-weather.mp3", "wb") as f:
