@@ -82,42 +82,37 @@ jobs:
         EOF
 
 
-    - name: Convert Script to MP3 (Google TTS)
+    - name: Convert Script to MP3 (OpenAI TTS)
       id: tts
       env:
-        GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
+        OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
       run: |
         python << 'EOF'
-        import requests, base64
+        import requests
 
         text = open("bulletin.txt").read()
 
-        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-tts:generateContent?key=${{ secrets.GOOGLE_API_KEY }}"
+        url = "https://api.openai.com/v1/audio/speech"
 
         payload = {
-            "contents": [
-                {
-                    "parts": [
-                        {"text": text}
-                    ]
-                }
-            ]
+            "model": "gpt-4o-mini-tts",
+            "input": text,
+            "voice": "alloy",
+            "format": "mp3"
         }
 
-        r = requests.post(url, json=payload)
-        print("RAW TTS RESPONSE:")
-        print(r.text)
+        headers = {
+            "Authorization": "Bearer ${{ secrets.OPENAI_API_KEY }}",
+            "Content-Type": "application/json"
+        }
 
-        data = r.json()
+        r = requests.post(url, json=payload, headers=headers)
 
-        if "candidates" not in data:
+        if r.status_code != 200:
             raise SystemExit("TTS failed: " + r.text)
 
-        audio_b64 = data["candidates"][0]["content"]["parts"][0]["audio"]["data"]
-        audio_bytes = base64.b64decode(audio_b64)
-
         with open("costa-blanca-weather.mp3", "wb") as f:
-            f.write(audio_bytes)
+            f.write(r.content)
         EOF
 
     - name: Upload MP3 as Artifact
