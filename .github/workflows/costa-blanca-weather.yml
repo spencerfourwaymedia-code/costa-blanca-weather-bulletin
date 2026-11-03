@@ -101,7 +101,7 @@ jobs:
       run: |
         pip install google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
 
-    - name: Convert Script to MP3 (ElevenLabs TTS)
+    - name: Convert Script to MP3 (ElevenLabs TTS - Katie X)
       id: tts
       env:
         ELEVENLABS_API_KEY: ${{ secrets.ELEVENLABS_API_KEY }}
@@ -111,7 +111,8 @@ jobs:
 
         text = open("bulletin.txt").read()
 
-        url = "https://api.elevenlabs.io/v1/text-to-speech/MzqUf1HbJ8UmQ0wUsx2p"  # "Katie X" voice
+        # Replace VOICE_ID with Katie X's actual ID from your ElevenLabs dashboard
+        url = "https://api.elevenlabs.io/v1/text-to-speech/pNInz6obpgDQGcFmaJgB"
 
         headers = {
             "xi-api-key": "${{ secrets.ELEVENLABS_API_KEY }}",
@@ -122,10 +123,10 @@ jobs:
             "text": text,
             "model_id": "eleven_multilingual_v2",
             "voice_settings": {
-                "stability": 0.4,
-                "similarity_boost": 0.8,
-                "style": 0.4,
-                "use_speaker_boost": True
+                "stability": 0.32,          # relaxed, natural flow
+                "similarity_boost": 0.85,   # keeps Katie X's signature tone
+                "style": 0.55,              # friendly, warm, commercial radio
+                "use_speaker_boost": True   # confident, present delivery
             }
         }
 
@@ -137,6 +138,7 @@ jobs:
         with open("costa-blanca-weather.mp3", "wb") as f:
             f.write(r.content)
         EOF
+
 
     - name: Upload MP3 as Artifact
       uses: actions/upload-artifact@v4
