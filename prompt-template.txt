@@ -77,8 +77,7 @@ When speaking temperatures:
 * Say the full unit, either degrees Celsius or degrees Fahrenheit, only once on the first temperature reference.
 * After that you may simply say degrees where appropriate.
 * Do not convert values.
-* Do not round values.
-* Use the values exactly as provided.
+* Round values, avoiding decimal points.
 
 Feels-like
 
