@@ -193,3 +193,36 @@ jobs:
 
           print("MP3 generated successfully")
           EOF
+          
+      - name: Upload MP3 to Dropbox
+        env:
+          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+        run: |
+          python << 'EOF'
+          import requests
+
+          with open("costa-blanca-weather.mp3", "rb") as f:
+              audio = f.read()
+
+          headers = {
+              "Authorization": "Bearer ${{ secrets.DROPBOX_ACCESS_TOKEN }}",
+              "Dropbox-API-Arg": '{"path": "/Radio/Weather/costa-blanca-weather.mp3","mode":"overwrite","autorename":false}',
+              "Content-Type": "application/octet-stream"
+          }
+
+          response = requests.post(
+              "https://content.dropboxapi.com/2/files/upload",
+              headers=headers,
+              data=audio
+          )
+
+          print(response.text)
+
+          if response.status_code != 200:
+              raise SystemExit(
+                  "Dropbox upload failed:\n" +
+                  response.text
+              )
+
+          print("Dropbox upload successful")
+          EOF
