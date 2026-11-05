@@ -55,7 +55,7 @@ jobs:
           weather = json.load(open("weather.json"))
 
           template = open(
-              "prompts/prompt-template.txt",
+              "prompt-template.txt",
               "r",
               encoding="utf-8"
           ).read()
