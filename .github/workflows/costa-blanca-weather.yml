@@ -112,7 +112,7 @@ jobs:
         text = open("bulletin.txt").read()
 
         # Replace VOICE_ID with Katie X's actual ID from your ElevenLabs dashboard
-        url = "https://api.elevenlabs.io/v1/text-to-speech/EXAVITQu4vr4xnSDxMaL"
+        url = "https://api.elevenlabs.io/v1/text-to-speech/MzqUf1HbJ8UmQ0wUsx2p"
 
         headers = {
             "xi-api-key": "${{ secrets.ELEVENLABS_API_KEY }}",
