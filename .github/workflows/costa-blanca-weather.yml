@@ -47,12 +47,26 @@ jobs:
         weather = json.load(open("weather.json"))
 
         # Build prompt
-        prompt = f"""
-        Write a 35-second Costa Blanca weather bulletin for radio.
-        Tone: British radio, present tense, tight pacing, spoken-friendly.
-        Use this weather data:
-        {json.dumps(weather)}
-        """
+from datetime import datetime
+
+template = open("prompt-template.txt", "r", encoding="utf-8").read()
+
+current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+
+alerts_text = "None"
+
+prompt = f"""
+{template}
+
+Current local date/time:
+{current_time}
+
+Forecast JSON:
+{json.dumps(weather, indent=2)}
+
+Alerts:
+{alerts_text}
+"""
 
         # Gemini 3.5 Flash endpoint
         url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${{ secrets.GOOGLE_API_KEY }}"
