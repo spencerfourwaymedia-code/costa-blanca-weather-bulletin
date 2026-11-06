@@ -3,6 +3,7 @@ name: Daily Costa Blanca Weather Bulletin
 on:
   schedule:
     - cron: "0 6 * * *"
+
   workflow_dispatch:
 
 jobs:
@@ -25,7 +26,8 @@ jobs:
       - name: Download Weather Data
         run: |
           python << 'EOF'
-          import requests, json
+          import requests
+          import json
 
           url = (
               "https://api.open-meteo.com/v1/forecast"
@@ -40,6 +42,8 @@ jobs:
 
           with open("weather.json", "w") as f:
               json.dump(data, f)
+
+          print("Weather data downloaded.")
           EOF
 
       - name: Generate Forecast Script (Gemini)
@@ -50,9 +54,13 @@ jobs:
           import requests
           import json
           import time
+          import os
+
           from datetime import datetime
 
-          weather = json.load(open("weather.json"))
+          weather = json.load(
+              open("weather.json")
+          )
 
           template = open(
               "prompt-template.txt",
@@ -60,7 +68,9 @@ jobs:
               encoding="utf-8"
           ).read()
 
-          current_time = datetime.now().strftime("%Y-%m-%d %H:%M")
+          current_time = datetime.now().strftime(
+              "%Y-%m-%d %H:%M"
+          )
 
           alerts_text = "No active alerts"
 
@@ -80,7 +90,7 @@ jobs:
           url = (
               "https://generativelanguage.googleapis.com/"
               "v1beta/models/gemini-3.5-flash:generateContent"
-              f"?key=${{ secrets.GOOGLE_API_KEY }}"
+              f"?key={os.environ['GOOGLE_API_KEY']}"
           )
 
           payload = {
@@ -103,8 +113,9 @@ jobs:
                   timeout=60
               )
 
-              print(f"Attempt {attempt+1}")
-              print(response.text)
+              print(
+                  f"Gemini Attempt {attempt + 1}"
+              )
 
               data = response.json()
 
@@ -112,7 +123,10 @@ jobs:
                   response.status_code == 200
                   and "candidates" in data
               ):
-                  parts = data["candidates"][0]["content"]["parts"]
+
+                  parts = data[
+                      "candidates"
+                  ][0]["content"]["parts"]
 
                   script = "".join(
                       p.get("text", "")
@@ -127,6 +141,7 @@ jobs:
                       f.write(script)
 
                   print(script)
+
                   break
 
               if response.status_code == 503:
@@ -134,10 +149,12 @@ jobs:
                   continue
 
               raise SystemExit(
-                  "Gemini Error:\n" + response.text
+                  "Gemini Error:\n"
+                  + response.text
               )
 
           else:
+
               raise SystemExit(
                   "Gemini unavailable after 5 retries."
               )
@@ -149,22 +166,36 @@ jobs:
         run: |
           python << 'EOF'
           import requests
+          import os
 
-          with open("bulletin.txt", "r", encoding="utf-8") as f:
+          with open(
+              "bulletin.txt",
+              "r",
+              encoding="utf-8"
+          ) as f:
+
               text = f.read()
 
           voice_id = "MzqUf1HbJ8UmQ0wUsx2p"
 
-          url = f"https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+          url = (
+              f"https://api.elevenlabs.io/"
+              f"v1/text-to-speech/{voice_id}"
+          )
 
           headers = {
-              "xi-api-key": "${{ secrets.ELEVENLABS_API_KEY }}",
-              "Content-Type": "application/json"
+              "xi-api-key":
+                  os.environ[
+                      "ELEVENLABS_API_KEY"
+                  ],
+              "Content-Type":
+                  "application/json"
           }
 
           payload = {
               "text": text,
-              "model_id": "eleven_multilingual_v2",
+              "model_id":
+                  "eleven_multilingual_v2",
               "voice_settings": {
                   "stability": 0.32,
                   "similarity_boost": 0.85,
@@ -180,49 +211,106 @@ jobs:
               timeout=120
           )
 
-          print(response.status_code)
-
           if response.status_code != 200:
+
               raise SystemExit(
-                  "ElevenLabs Error:\n" +
-                  response.text
+                  "ElevenLabs Error:\n"
+                  + response.text
               )
 
-          with open("costa-blanca-weather.mp3", "wb") as f:
-              f.write(response.content)
+          with open(
+              "costa-blanca-weather.mp3",
+              "wb"
+          ) as f:
 
-          print("MP3 generated successfully")
+              f.write(
+                  response.content
+              )
+
+          print(
+              "MP3 generated successfully"
+          )
           EOF
-          
+
       - name: Upload MP3 to Dropbox
         env:
-          DROPBOX_ACCESS_TOKEN: ${{ secrets.DROPBOX_ACCESS_TOKEN }}
+          DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
+          DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          DROPBOX_REFRESH_TOKEN: ${{ secrets.DROPBOX_REFRESH_TOKEN }}
         run: |
           python << 'EOF'
           import requests
+          import json
+          import os
 
-          with open("costa-blanca-weather.mp3", "rb") as f:
+          token_response = requests.post(
+              "https://api.dropboxapi.com/oauth2/token",
+              data={
+                  "grant_type":
+                      "refresh_token",
+                  "refresh_token":
+                      os.environ[
+                          "DROPBOX_REFRESH_TOKEN"
+                      ],
+                  "client_id":
+                      os.environ[
+                          "DROPBOX_APP_KEY"
+                      ],
+                  "client_secret":
+                      os.environ[
+                          "DROPBOX_APP_SECRET"
+                      ]
+              },
+              timeout=30
+          )
+
+          token_response.raise_for_status()
+
+          access_token = (
+              token_response.json()[
+                  "access_token"
+              ]
+          )
+
+          print(
+              "Dropbox access token refreshed."
+          )
+
+          with open(
+              "costa-blanca-weather.mp3",
+              "rb"
+          ) as f:
+
               audio = f.read()
 
           headers = {
-              "Authorization": "Bearer ${{ secrets.DROPBOX_ACCESS_TOKEN }}",
-              "Dropbox-API-Arg": '{"path": "/Radio/Weather/costa-blanca-weather.mp3","mode":"overwrite","autorename":false}',
-              "Content-Type": "application/octet-stream"
+              "Authorization":
+                  f"Bearer {access_token}",
+              "Dropbox-API-Arg":
+                  json.dumps({
+                      "path":
+                          "/Radio/Weather/costa-blanca-weather.mp3",
+                      "mode":
+                          "overwrite",
+                      "autorename":
+                          False
+                  }),
+              "Content-Type":
+                  "application/octet-stream"
           }
 
           response = requests.post(
               "https://content.dropboxapi.com/2/files/upload",
               headers=headers,
-              data=audio
+              data=audio,
+              timeout=120
           )
 
           print(response.text)
 
-          if response.status_code != 200:
-              raise SystemExit(
-                  "Dropbox upload failed:\n" +
-                  response.text
-              )
+          response.raise_for_status()
 
-          print("Dropbox upload successful")
+          print(
+              "Dropbox upload successful."
+          )
           EOF
